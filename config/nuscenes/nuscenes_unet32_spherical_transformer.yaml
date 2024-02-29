@@ -1,6 +1,6 @@
 DATA:
   data_name: nuscenes
-  data_root: YOUR_DATA_ROOT # Fill in the data path 
+  data_root: data/nuscenes # Fill in the data path 
   label_mapping: util/nuscenes.yaml
   classes: 16 
   fea_dim: 6

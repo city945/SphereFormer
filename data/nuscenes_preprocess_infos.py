@@ -13,8 +13,8 @@ from nuscenes.utils.geometry_utils import transform_matrix
 from pyquaternion import Quaternion
 
 version = 'v1.0-trainval'
-data_path = # Your nuscenes dataset root
-save_dir = # Your nuscenes dataset root
+data_path = 'nuscenes' # Your nuscenes dataset root
+save_dir = 'nuscenes' # Your nuscenes dataset root
 
 map_name_from_general_to_detection = {
     'human.pedestrian.adult': 'pedestrian',
