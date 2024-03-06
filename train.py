@@ -35,16 +35,27 @@ import pickle
 import yaml
 from torch_scatter import scatter_mean
 import spconv.pytorch as spconv
+import wandb
+import datetime
+from pathlib import Path
 
 def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch Point Cloud Semantic Segmentation')
     parser.add_argument('--config', type=str, default='config/s3dis/s3dis_stratified_transformer.yaml', help='config file')
+    parser.add_argument('--use_wandb', action='store_true', default=False, help='')
+    parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     parser.add_argument('opts', help='see config/s3dis/s3dis_stratified_transformer.yaml for all options', default=None, nargs=argparse.REMAINDER)
     args = parser.parse_args()
     assert args.config is not None
     cfg = config.load_cfg_from_cfg_file(args.config)
     if args.opts is not None:
         cfg = config.merge_cfg_from_list(cfg, args.opts)
+    cfg.config = args.config
+    cfg.extra_tag = datetime.datetime.now().strftime('%Y%m%d-%H%M%S') if args.extra_tag == 'default' else args.extra_tag
+    cfg.use_wandb = args.use_wandb
+    cfg.save_path = f"{cfg.save_path}/{cfg.extra_tag}"
+    cfg.TAG = Path(args.config).stem
+    cfg.EXP_GROUP_PATH = '/'.join(args.config.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
     return cfg
 
 
@@ -151,6 +162,11 @@ def main_worker(gpu, ngpus_per_node, argss):
         logger = get_logger(args.save_path)
         writer = SummaryWriter(args.save_path)
         logger.info(args)
+        if args.use_wandb:
+            project_name = os.path.abspath(__file__).split(os.sep)[-2]
+            wandb.init(project=project_name, config=args, dir=args.save_path)
+            wandb.run.tags = args.EXP_GROUP_PATH.split('/') + [args.TAG]
+            wandb.run.name = args.extra_tag
 
     if args.distributed:
         torch.cuda.set_device(gpu)
@@ -417,6 +433,15 @@ def main_worker(gpu, ngpus_per_node, argss):
             writer.add_scalar('mIoU_train', mIoU_train, epoch_log)
             writer.add_scalar('mAcc_train', mAcc_train, epoch_log)
             writer.add_scalar('allAcc_train', allAcc_train, epoch_log)
+            if args.use_wandb:
+                train_metrics_by_epoch = {
+                    'train/epoch': epoch_log,
+                    'train/loss_epoch': loss_train,
+                    'train/mIoU_epoch': mIoU_train,
+                    'train/mAcc_epoch': mAcc_train,
+                    'train/allAcc_epoch': allAcc_train,
+                }
+                wandb.log(train_metrics_by_epoch)
 
         is_best = False
         if args.evaluate and (epoch_log % args.eval_freq == 0):
@@ -427,6 +452,15 @@ def main_worker(gpu, ngpus_per_node, argss):
                 writer.add_scalar('mIoU_val', mIoU_val, epoch_log)
                 writer.add_scalar('mAcc_val', mAcc_val, epoch_log)
                 writer.add_scalar('allAcc_val', allAcc_val, epoch_log)
+                if args.use_wandb:
+                    val_metrics_by_epoch = {
+                        'val/epoch': epoch_log,
+                        'val/loss': loss_val,
+                        'val/mIoU': mIoU_val,
+                        'val/mAcc': mAcc_val,
+                        'val/allAcc': allAcc_val,
+                    }
+                    wandb.log(val_metrics_by_epoch)
                 is_best = mIoU_val > best_iou
                 best_iou = max(best_iou, mIoU_val)
 
@@ -443,6 +477,13 @@ def main_worker(gpu, ngpus_per_node, argss):
     if main_process():
         writer.close()
         logger.info('==>Training done!\nBest Iou: %.3f' % (best_iou))
+        if args.use_wandb:
+            file_artifact = wandb.Artifact(type='file', name=wandb.run.name)
+            log_file = f"{args.save_path}/log.txt"
+            file_artifact.add_file(log_file)
+            file_artifact.add_file(args.config)
+            wandb.log_artifact(file_artifact)
+            wandb.finish()
 
 
 def focal_loss(output, target, class_weight, ignore_label, gamma, need_softmax=True, eps=1e-8):
@@ -571,6 +612,14 @@ def train(train_loader, model, criterion, optimizer, epoch, scaler, scheduler, g
             writer.add_scalar('mIoU_train_batch', np.mean(intersection / (union + 1e-10)), current_iter)
             writer.add_scalar('mAcc_train_batch', np.mean(intersection / (target + 1e-10)), current_iter)
             writer.add_scalar('allAcc_train_batch', accuracy, current_iter)
+            if args.use_wandb:
+                train_metrics = {
+                    'train/loss': loss_meter.val,
+                    'train/mIoU': np.mean(intersection / (union + 1e-10)),
+                    'train/mAcc': np.mean(intersection / (target + 1e-10)),
+                    'train/allAcc': accuracy,
+                }
+                wandb.log(train_metrics)
 
     iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
     accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)

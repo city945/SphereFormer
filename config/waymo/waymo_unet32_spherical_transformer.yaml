@@ -1,6 +1,6 @@
 DATA:
   data_name: waymo
-  data_root: YOUR_DATA_ROOT/waymo_semantickitti_format # Fill in the data path 
+  data_root: data/waymo_semantickitti_format # Fill in the data path 
   classes: 22
   fea_dim: 6
   voxel_size: [0.1, 0.1, 0.1]
