@@ -44,6 +44,8 @@ def get_parser():
     parser.add_argument('--config', type=str, default='config/s3dis/s3dis_stratified_transformer.yaml', help='config file')
     parser.add_argument('--use_wandb', action='store_true', default=False, help='')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
+    parser.add_argument('--debug', action='store_true', default=False, help='debug setting')
+    parser.add_argument('--save_predicts', action='store_true', default=False, help='save predict results')
     parser.add_argument('opts', help='see config/s3dis/s3dis_stratified_transformer.yaml for all options', default=None, nargs=argparse.REMAINDER)
     args = parser.parse_args()
     assert args.config is not None
@@ -53,9 +55,20 @@ def get_parser():
     cfg.config = args.config
     cfg.extra_tag = datetime.datetime.now().strftime('%Y%m%d-%H%M%S') if args.extra_tag == 'default' else args.extra_tag
     cfg.use_wandb = args.use_wandb
+    cfg.save_predicts = args.save_predicts
     cfg.save_path = f"{cfg.save_path}/{cfg.extra_tag}"
+    cfg.result_dir = f"{cfg.save_path}/result"
     cfg.TAG = Path(args.config).stem
     cfg.EXP_GROUP_PATH = '/'.join(args.config.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
+
+    if args.debug:
+        cfg.extra_tag = 'debug'
+        cfg.train_gpu = [0, 1]  # 必须多卡才能调试，多卡干脆没卡 2 个样本
+        cfg.batch_size = 4
+        cfg.batch_size_val = 4
+        cfg.workers = 0
+        cfg.manual_seed = 123
+
     return cfg
 
 
@@ -73,6 +86,8 @@ def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(x) for x in args.train_gpu)
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
+    if not os.path.exists(args.result_dir):
+        os.makedirs(args.result_dir)
     # import torch.backends.mkldnn
     # ackends.mkldnn.enabled = False
     # os.environ["LRU_CACHE_CAPACITY"] = "1"
@@ -651,7 +666,7 @@ def validate(val_loader, model, criterion):
 
         data_time.update(time.time() - end)
     
-        (coord, xyz, feat, target, offset, inds_reconstruct) = batch_data
+        (coord, xyz, feat, target, offset, inds_reconstruct, info) = batch_data
         inds_reconstruct = inds_reconstruct.cuda(non_blocking=True)
 
         offset_ = offset.clone()
@@ -747,7 +762,7 @@ def validate_tta(val_loader, model, criterion):
             output = 0.0
             for batch_data in batch_data_list:
 
-                (coord, xyz, feat, target, offset, inds_reconstruct) = batch_data
+                (coord, xyz, feat, target, offset, inds_reconstruct, info) = batch_data
                 inds_reconstruct = inds_reconstruct.cuda(non_blocking=True)
 
                 offset_ = offset.clone()
@@ -846,7 +861,7 @@ def validate_distance(val_loader, model, criterion):
 
         data_time.update(time.time() - end)
     
-        (coord, xyz, feat, target, offset, inds_reverse) = batch_data
+        (coord, xyz, feat, target, offset, inds_reverse, info) = batch_data
         inds_reverse = inds_reverse.cuda(non_blocking=True)
 
         offset_ = offset.clone()
@@ -875,6 +890,18 @@ def validate_distance(val_loader, model, criterion):
                 raise ValueError("such loss {} not implemented".format(loss_name))
 
         output = output.max(1)[1]
+        # save predictions
+        if args.save_predicts:
+            start_idx = 0
+            pred_labels = output.cpu().numpy()
+            for i in range(len(info['frame_id'])):
+                frame_id = info['frame_id'][i]
+                num_points = info['num_points'][i]
+                pred_path = f"{args.result_dir}/{frame_id}.label"
+                pred_label = pred_labels[start_idx:start_idx+num_points] + 1
+                pred_label = np.vectorize(val_loader.dataset.learning_map_inv.__getitem__)(pred_label).astype(np.uint32)
+                pred_label.tofile(pred_path)
+
         n = coord.size(0)
         if args.multiprocessing_distributed:
             loss *= n

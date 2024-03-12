@@ -49,7 +49,7 @@
 .idea
 
 # Visual Studio Code files
-.vscode
+# .vscode
 
 # OSX dir files
 .DS_Store

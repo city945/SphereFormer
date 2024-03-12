@@ -47,7 +47,7 @@ TRAIN:
 
   power: 0.9
   use_amp: True
-  train_gpu: [0,1,2,3] 
+  train_gpu: [0,2,4,6] 
   workers: 16  # data loader workers 
   batch_size: 8 # batch size for training
   batch_size_val: 8 # batch size for validation during training, memory and speed tradeoff

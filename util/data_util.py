@@ -5,10 +5,10 @@ from torch_scatter import scatter_mean
 from util.voxelize import voxelize
 
 def collate_fn_limit(batch, max_batch_points, logger):
-    coord, xyz, feat, label = list(zip(*batch))
+    coord, xyz, feat, label, info = list(zip(*batch))
     offset, count = [], 0
     
-    new_coord, new_xyz, new_feat, new_label = [], [], [], []
+    new_coord, new_xyz, new_feat, new_label, new_info = [], [], [], [], {}
     k = 0
     for i, item in enumerate(xyz):
 
@@ -22,13 +22,17 @@ def collate_fn_limit(batch, max_batch_points, logger):
         new_xyz.append(xyz[i])
         new_feat.append(feat[i])
         new_label.append(label[i])
+        for key, val in info[i].items():
+            if key not in new_info:
+                new_info[key] = []
+            new_info[key].append(val)
 
     if logger is not None and k < len(batch):
         s = sum([x.shape[0] for x in xyz])
         s_now = sum([x.shape[0] for x in new_xyz[:k]])
         logger.warning("batch_size shortened from {} to {}, points from {} to {}".format(len(batch), k, s, s_now))
 
-    return torch.cat(new_coord[:k]), torch.cat(new_xyz[:k]), torch.cat(new_feat[:k]), torch.cat(new_label[:k]), torch.IntTensor(offset[:k])
+    return torch.cat(new_coord[:k]), torch.cat(new_xyz[:k]), torch.cat(new_feat[:k]), torch.cat(new_label[:k]), torch.IntTensor(offset[:k]), new_info[:k]
     
 
 def collation_fn_voxelmean(batch):
@@ -37,7 +41,7 @@ def collation_fn_voxelmean(batch):
     :return:   coords_batch: N x 4 (x,y,z,batch)
 
     """
-    coords, xyz, feats, labels, inds_recons = list(zip(*batch))
+    coords, xyz, feats, labels, inds_recons, info = list(zip(*batch))
     inds_recons = list(inds_recons)
 
     accmulate_points_num = 0
@@ -54,7 +58,14 @@ def collation_fn_voxelmean(batch):
     offset = torch.IntTensor(offset)
     inds_recons = torch.cat(inds_recons)
 
-    return coords, xyz, feats, labels, offset, inds_recons
+    new_info = {}
+    for cur_sample in info:
+        for key, val in cur_sample.items():
+            if key not in new_info:
+                new_info[key] = []
+            new_info[key].append(val)
+
+    return coords, xyz, feats, labels, offset, inds_recons, new_info
 
 def collation_fn_voxelmean_tta(batch_list):
     """
@@ -66,7 +77,7 @@ def collation_fn_voxelmean_tta(batch_list):
     batch_list = list(zip(*batch_list))
 
     for batch in batch_list:
-        coords, xyz, feats, labels, inds_recons = list(zip(*batch))
+        coords, xyz, feats, labels, inds_recons, info = list(zip(*batch))
         inds_recons = list(inds_recons)
 
         accmulate_points_num = 0
@@ -83,7 +94,13 @@ def collation_fn_voxelmean_tta(batch_list):
         offset = torch.IntTensor(offset)
         inds_recons = torch.cat(inds_recons)
 
-        sample = (coords, xyz, feats, labels, offset, inds_recons)
+        new_info = {}
+        for cur_sample in info:
+            for key, val in cur_sample.items():
+                if key not in new_info:
+                    new_info[key] = []
+                new_info[key].append(val)
+        sample = (coords, xyz, feats, labels, offset, inds_recons, new_info)
         samples.append(sample)
 
     return samples
