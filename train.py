@@ -38,6 +38,7 @@ import spconv.pytorch as spconv
 import wandb
 import datetime
 from pathlib import Path
+import pu4c
 
 def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch Point Cloud Semantic Segmentation')
@@ -68,6 +69,7 @@ def get_parser():
         cfg.batch_size_val = 4
         cfg.workers = 0
         cfg.manual_seed = 123
+        pu4c.nprandom.seed(123)
 
     return cfg
 

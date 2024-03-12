@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Sequence
+import pu4c
 
 def fnv_hash_vec(arr):
     """
@@ -46,12 +47,12 @@ def voxelize(coord, voxel_size=0.05, hash_type='fnv', mode=0):
     key_sort = key[idx_sort]
     _, count = np.unique(key_sort, return_counts=True)
     if mode == 0:  # train mode
-        idx_select = np.cumsum(np.insert(count, 0, 0)[0:-1]) + np.random.randint(0, count.max(), count.size) % count
+        idx_select = np.cumsum(np.insert(count, 0, 0)[0:-1]) + pu4c.nprandom.randint(0, count.max(), count.size) % count
         idx_unique = idx_sort[idx_select]
         return idx_unique
     else:  # val mode
         idx_start = np.cumsum(np.insert(count, 0, 0)[0:-1])
-        idx_select = idx_start# + np.random.randint(0, count.max(), count.size) % count
+        idx_select = idx_start# + pu4c.nprandom.randint(0, count.max(), count.size) % count
         # idx_unique = idx_sort[idx_select]
         sorted_idx = np.zeros(key.shape[0]).astype(np.int32)
         sorted_idx[idx_start] = 1

@@ -8,6 +8,7 @@ import scipy
 import random
 import time
 from util.data_util import data_prepare
+import pu4c
 
 
 #Elastic distortion
@@ -16,7 +17,7 @@ def elastic(x, gran, mag):
     blur1 = np.ones((1, 3, 1)).astype('float32') / 3
     blur2 = np.ones((1, 1, 3)).astype('float32') / 3
     bb = (np.abs(x).max(0)//gran + 3).astype(np.int32)
-    noise = [np.random.randn(bb[0], bb[1], bb[2]).astype('float32') for _ in range(3)]
+    noise = [pu4c.nprandom.randn(bb[0], bb[1], bb[2]).astype('float32') for _ in range(3)]
     noise = [scipy.ndimage.filters.convolve(n, blur0, mode='constant', cval=0) for n in noise]
     noise = [scipy.ndimage.filters.convolve(n, blur1, mode='constant', cval=0) for n in noise]
     noise = [scipy.ndimage.filters.convolve(n, blur2, mode='constant', cval=0) for n in noise]
@@ -123,7 +124,7 @@ class Waymo(torch.utils.data.Dataset):
         # Augmentation
         # ==================================================
         if self.rotate_aug:
-            rotate_rad = np.deg2rad(np.random.random() * 360) - np.pi
+            rotate_rad = np.deg2rad(pu4c.nprandom.random() * 360) - np.pi
             c, s = np.cos(rotate_rad), np.sin(rotate_rad)
             j = np.matrix([[c, s], [-s, c]])
             points[:, :2] = np.dot(points[:, :2], j)
@@ -133,7 +134,7 @@ class Waymo(torch.utils.data.Dataset):
             if self.use_tta:
                 flip_type = vote_idx % 4
             else:
-                flip_type = np.random.choice(4, 1)
+                flip_type = pu4c.nprandom.choice(4, 1)
             if flip_type == 1:
                 points[:, 0] = -points[:, 0]
             elif flip_type == 2:
@@ -142,14 +143,14 @@ class Waymo(torch.utils.data.Dataset):
                 points[:, :2] = -points[:, :2]
 
         if self.scale_aug:
-            noise_scale = np.random.uniform(self.scale_params[0], self.scale_params[1])
+            noise_scale = pu4c.nprandom.uniform(self.scale_params[0], self.scale_params[1])
             points[:, 0] = noise_scale * points[:, 0]
             points[:, 1] = noise_scale * points[:, 1]
             
         if self.transform_aug:
-            noise_translate = np.array([np.random.normal(0, self.trans_std[0], 1),
-                                        np.random.normal(0, self.trans_std[1], 1),
-                                        np.random.normal(0, self.trans_std[2], 1)]).T
+            noise_translate = np.array([pu4c.nprandom.normal(0, self.trans_std[0], 1),
+                                        pu4c.nprandom.normal(0, self.trans_std[1], 1),
+                                        pu4c.nprandom.normal(0, self.trans_std[2], 1)]).T
             points[:, 0:3] += noise_translate
 
         if self.elastic_aug:

@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from torch_scatter import scatter_mean
 from util.voxelize import voxelize
+import pu4c
 
 def collate_fn_limit(batch, max_batch_points, logger):
     coord, xyz, feat, label, info = list(zip(*batch))
@@ -117,7 +118,7 @@ def data_prepare(coord, feat, label, split='train', voxel_size=np.array([0.1, 0.
         coord_voxel = np.floor(coord_norm[uniq_idx] / np.array(voxel_size))
         coord, feat, label = coord[uniq_idx], feat[uniq_idx], label[uniq_idx]
         if voxel_max and label.shape[0] > voxel_max:
-            init_idx = np.random.randint(label.shape[0])
+            init_idx = pu4c.nprandom.randint(label.shape[0])
             crop_idx = np.argsort(np.sum(np.square(coord - coord[init_idx]), 1))[:voxel_max]
             coord, feat, label = coord[crop_idx], feat[crop_idx], label[crop_idx]
             coord_voxel = coord_voxel[crop_idx]

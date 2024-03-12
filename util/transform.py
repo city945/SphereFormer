@@ -2,6 +2,7 @@ import numpy as np
 import random
 import torch
 import scipy
+import pu4c
 
 
 class RandomShift_test(object):
@@ -9,7 +10,7 @@ class RandomShift_test(object):
         self.shift_range = shift_range
 
     def __call__(self, points, color):
-        # shift = np.random.uniform(-self.shift_range, self.shift_range, 3)
+        # shift = pu4c.nprandom.uniform(-self.shift_range, self.shift_range, 3)
         shift = np.ones(3) * self.shift_range
         points[:, 0:3] += shift
         return points, color
@@ -49,7 +50,7 @@ class RandomRotate(object):
 
     def __call__(self, points, color):
         if self.rotate_angle is None:
-            rotate_angle = np.random.uniform() * 2 * np.pi
+            rotate_angle = pu4c.nprandom.uniform() * 2 * np.pi
         else:
             rotate_angle = self.rotate_angle
         cosval, sinval = np.cos(rotate_angle), np.sin(rotate_angle)
@@ -72,7 +73,7 @@ class RandomRotatePerturbation(object):
         self.angle_clip = angle_clip
 
     def __call__(self, data, label):
-        angles = np.clip(self.angle_sigma*np.random.randn(3), -self.angle_clip, self.angle_clip)
+        angles = np.clip(self.angle_sigma*pu4c.nprandom.randn(3), -self.angle_clip, self.angle_clip)
         Rx = np.array([[1, 0, 0],
                        [0, np.cos(angles[0]), -np.sin(angles[0])],
                        [0, np.sin(angles[0]), np.cos(angles[0])]])
@@ -95,7 +96,7 @@ class RandomScale(object):
         self.scale_high = scale_high
 
     def __call__(self, points, color):
-        scale = np.random.uniform(self.scale_low, self.scale_high)
+        scale = pu4c.nprandom.uniform(self.scale_low, self.scale_high)
         points[:, 0:3] *= scale
         return points, color
 
@@ -108,7 +109,7 @@ class RandomShift(object):
         self.shift_range = shift_range
 
     def __call__(self, points, color):
-        shift = np.random.uniform(-self.shift_range, self.shift_range, 3)
+        shift = pu4c.nprandom.uniform(-self.shift_range, self.shift_range, 3)
         points[:, 0:3] += shift
         return points, color
 
@@ -123,7 +124,7 @@ class RandomJitter(object):
 
     def __call__(self, points, color):
         assert (self.clip > 0)
-        jitter = np.clip(self.sigma * np.random.randn(points.shape[0], 3), -1 * self.clip, self.clip)
+        jitter = np.clip(self.sigma * pu4c.nprandom.randn(points.shape[0], 3), -1 * self.clip, self.clip)
         points[:, 0:3] += jitter
         return points, color
     
@@ -137,12 +138,12 @@ class RandomJitter(object):
 #         self.blend_factor = blend_factor
 
 #     def __call__(self, points, color):
-#         if np.random.rand() < self.p:
+#         if pu4c.nprandom.rand() < self.p:
 #             lo = np.min(color, axis=0, keepdims=True)
 #             hi = np.max(color, axis=0, keepdims=True)
 #             scale = 255 / (hi - lo)
 #             contrast_color = (color - lo) * scale
-#             blend_factor = np.random.rand() if self.blend_factor is None else self.blend_factor
+#             blend_factor = pu4c.nprandom.rand() if self.blend_factor is None else self.blend_factor
 #             color = (1 - blend_factor) * color + blend_factor * contrast_color
 #         return points, color
 
@@ -153,8 +154,8 @@ class RandomJitter(object):
 #         self.ratio = ratio
 
 #     def __call__(self, points, color):
-#         if np.random.rand() < self.p:
-#             tr = (np.random.rand(1, 3) - 0.5) * 255 * 2 * self.ratio
+#         if pu4c.nprandom.rand() < self.p:
+#             tr = (pu4c.nprandom.rand(1, 3) - 0.5) * 255 * 2 * self.ratio
 #             color = np.clip(tr + color, 0, 255)
 #         return points, color
 
@@ -165,8 +166,8 @@ class RandomJitter(object):
 #         self.std = std
 
 #     def __call__(self, points, color):
-#         if np.random.rand() < self.p:
-#             noise = np.random.randn(color.shape[0], 3)
+#         if pu4c.nprandom.rand() < self.p:
+#             noise = pu4c.nprandom.randn(color.shape[0], 3)
 #             noise *= self.std * 255
 #             color[:, :3] = np.clip(noise + color[:, :3], 0, 255)
 #         return points, color
@@ -226,8 +227,8 @@ class RandomJitter(object):
 #     def __call__(self, points, color):
 #         # Assume color[:, :3] is rgb
 #         hsv = HueSaturationTranslation.rgb_to_hsv(color[:, :3])
-#         hue_val = (np.random.rand() - 0.5) * 2 * self.hue_max
-#         sat_ratio = 1 + (np.random.rand() - 0.5) * 2 * self.saturation_max
+#         hue_val = (pu4c.nprandom.rand() - 0.5) * 2 * self.hue_max
+#         sat_ratio = 1 + (pu4c.nprandom.rand() - 0.5) * 2 * self.saturation_max
 #         hsv[..., 0] = np.remainder(hue_val + hsv[..., 0] + 1, 1)
 #         hsv[..., 1] = np.clip(sat_ratio * hsv[..., 1], 0, 1)
 #         color[:, :3] = np.clip(HueSaturationTranslation.hsv_to_rgb(hsv), 0, 255)
@@ -240,7 +241,7 @@ class RandomDropColor(object):
         self.color_augment = color_augment
     
     def __call__(self, points, color):
-        if color is not None and np.random.rand() > self.p:
+        if color is not None and pu4c.nprandom.rand() > self.p:
             color *= self.color_augment
         return points, color
 
@@ -267,7 +268,7 @@ class ElasticDistortion:
 
         # Create Gaussian noise tensor of the size given by granularity.
         noise_dim = ((coords - coords_min).max(0) // granularity).astype(int) + 3
-        noise = np.random.randn(*noise_dim, 3).astype(np.float32)
+        noise = pu4c.nprandom.randn(*noise_dim, 3).astype(np.float32)
 
         # Smoothing.
         for _ in range(2):
@@ -349,7 +350,7 @@ class ChromaticTranslation(object):
     def __call__(self, coords, feats):
         feats = (feats + 1.0) * 127.5
         if random.random() < 0.95:
-            tr = (np.random.rand(1, 3) - 0.5) * 255 * 2 * self.trans_range_ratio
+            tr = (pu4c.nprandom.rand(1, 3) - 0.5) * 255 * 2 * self.trans_range_ratio
             feats[:, :3] = np.clip(tr + feats[:, :3], 0, 255)
         feats = feats / 127.5 - 1
         return coords, feats
@@ -362,7 +363,7 @@ class ChromaticJitter(object):
     def __call__(self, coords, feats):
         feats = (feats + 1.0) * 127.5
         if random.random() < 0.95:
-            noise = np.random.randn(feats.shape[0], 3)
+            noise = pu4c.nprandom.randn(feats.shape[0], 3)
             noise *= self.std * 255
             feats[:, :3] = np.clip(noise + feats[:, :3], 0, 255)
         feats = feats / 127.5 - 1
