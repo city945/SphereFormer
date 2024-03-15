@@ -33,7 +33,7 @@ def collate_fn_limit(batch, max_batch_points, logger):
         s_now = sum([x.shape[0] for x in new_xyz[:k]])
         logger.warning("batch_size shortened from {} to {}, points from {} to {}".format(len(batch), k, s, s_now))
 
-    return torch.cat(new_coord[:k]), torch.cat(new_xyz[:k]), torch.cat(new_feat[:k]), torch.cat(new_label[:k]), torch.IntTensor(offset[:k]), new_info[:k]
+    return torch.cat(new_coord[:k]), torch.cat(new_xyz[:k]), torch.cat(new_feat[:k]), torch.cat(new_label[:k]), torch.IntTensor(offset[:k]), new_info
     
 
 def collation_fn_voxelmean(batch):

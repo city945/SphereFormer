@@ -110,7 +110,7 @@ class SemanticKITTI(torch.utils.data.Dataset):
     def get_single_sample(self, index, vote_idx=0):
 
         file_path = self.files[index]
-        frame_id = os.path.basename(file_path)[:-4]
+        frame_id = f"{file_path[-22:-20]}-{os.path.basename(file_path)[:-4]}"
 
         raw_data = np.fromfile(file_path, dtype=np.float32).reshape((-1, 4))
         annotated_data = np.fromfile(file_path.replace('velodyne', 'labels')[:-3] + 'label',
@@ -130,41 +130,53 @@ class SemanticKITTI(torch.utils.data.Dataset):
         info = {'frame_id': frame_id, 'num_points': points.shape[0]}
         # Augmentation
         # ==================================================
-        if self.rotate_aug:
-            rotate_rad = np.deg2rad(pu4c.nprandom.random() * 360) - np.pi
-            c, s = np.cos(rotate_rad), np.sin(rotate_rad)
-            j = np.matrix([[c, s], [-s, c]])
-            points[:, :2] = np.dot(points[:, :2], j)
+        if self.split == 'train':
+            if self.rotate_aug:
+                # rotate_rad = np.deg2rad(pu4c.nprandom.random() * 360) - np.pi
+                rotate_rad = pu4c.nprandom.uniform(-np.pi, np.pi)
+                c, s = np.cos(rotate_rad), np.sin(rotate_rad)
+                j = np.matrix([[c, s], [-s, c]])
+                points[:, :2] = np.dot(points[:, :2], j)
 
-        # random data augmentation by flip x , y or x+y
-        if self.flip_aug:
-            if self.use_tta:
-                flip_type = vote_idx % 4
-            else:
-                flip_type = pu4c.nprandom.choice(4, 1)
-            if flip_type == 1:
-                points[:, 0] = -points[:, 0]
-            elif flip_type == 2:
-                points[:, 1] = -points[:, 1]
-            elif flip_type == 3:
-                points[:, :2] = -points[:, :2]
+            # random data augmentation by flip x , y or x+y
+            if self.flip_aug:
+                if self.use_tta:
+                    flip_type = vote_idx % 4
+                else:
+                    # flip_type = pu4c.nprandom.choice(4, 1)
+                    # @tag mod
+                    flip_x = pu4c.nprandom.choice([False, True], replace=False, p=[0.5, 0.5])
+                    flip_y = pu4c.nprandom.choice([False, True], replace=False, p=[0.5, 0.5])
+                    if flip_y and not flip_x: flip_type = 1
+                    elif flip_x and not flip_y: flip_type = 2
+                    elif flip_x and flip_y: flip_type = 3
+                if flip_type == 1:
+                    points[:, 0] = -points[:, 0]
+                elif flip_type == 2:
+                    points[:, 1] = -points[:, 1]
+                elif flip_type == 3:
+                    # points[:, :2] = -points[:, :2]
+                    points[:, 0] = -points[:, 0]
+                    points[:, 1] = -points[:, 1]
+                    
 
-        if self.scale_aug:
-            noise_scale = pu4c.nprandom.uniform(self.scale_params[0], self.scale_params[1])
-            points[:, 0] = noise_scale * points[:, 0]
-            points[:, 1] = noise_scale * points[:, 1]
-            
-        if self.transform_aug:
-            noise_translate = np.array([pu4c.nprandom.normal(0, self.trans_std[0], 1),
-                                        pu4c.nprandom.normal(0, self.trans_std[1], 1),
-                                        pu4c.nprandom.normal(0, self.trans_std[2], 1)]).T
-            points[:, 0:3] += noise_translate
-            
-        if self.elastic_aug:
-            points[:, 0:3] = elastic(points[:, 0:3], self.elastic_gran[0], self.elastic_mag[0])
-            points[:, 0:3] = elastic(points[:, 0:3], self.elastic_gran[1], self.elastic_mag[1])
+            if self.scale_aug:
+                noise_scale = pu4c.nprandom.uniform(self.scale_params[0], self.scale_params[1])
+                points[:, 0] = noise_scale * points[:, 0]
+                points[:, 1] = noise_scale * points[:, 1]
+                points[:, 2] = noise_scale * points[:, 2] # @tag mod
+                
+            if self.transform_aug:
+                noise_translate = np.array([pu4c.nprandom.normal(0, self.trans_std[0], 1),
+                                            pu4c.nprandom.normal(0, self.trans_std[1], 1),
+                                            pu4c.nprandom.normal(0, self.trans_std[2], 1)]).T
+                points[:, 0:3] += noise_translate
+                
+            if self.elastic_aug:
+                points[:, 0:3] = elastic(points[:, 0:3], self.elastic_gran[0], self.elastic_mag[0])
+                points[:, 0:3] = elastic(points[:, 0:3], self.elastic_gran[1], self.elastic_mag[1])
 
-        # ==================================================
+            # ==================================================
 
         feats = points
         xyz = points[:, :3]

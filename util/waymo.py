@@ -107,6 +107,7 @@ class Waymo(torch.utils.data.Dataset):
     def get_single_sample(self, index, vote_idx=0):
 
         file_path = self.files[index]
+        frame_id = f"{file_path[-24:-20]}-{os.path.basename(file_path)[:-4]}"
 
         raw_data = np.fromfile(file_path, dtype=np.float32).reshape((-1, 4))
         annotated_data = np.fromfile(file_path.replace('velodyne', 'labels')[:-3] + 'label', 
@@ -121,6 +122,7 @@ class Waymo(torch.utils.data.Dataset):
         else:
             labels_in = np.zeros(points.shape[0]).astype(np.uint8)
 
+        info = {'frame_id': frame_id, 'num_points': points.shape[0]}
         # Augmentation
         # ==================================================
         if self.rotate_aug:
@@ -167,10 +169,10 @@ class Waymo(torch.utils.data.Dataset):
 
         if self.split == 'train':
             coords, xyz, feats, labels = data_prepare(xyz, feats, labels_in, self.split, self.voxel_size, self.voxel_max, None, self.xyz_norm)
-            return coords, xyz, feats, labels
+            return coords, xyz, feats, labels, info
         else:
             coords, xyz, feats, labels, inds_reconstruct = data_prepare(xyz, feats, labels_in, self.split, self.voxel_size, self.voxel_max, None, self.xyz_norm)
             if self.split == 'val':
-                return coords, xyz, feats, labels, inds_reconstruct
+                return coords, xyz, feats, labels, inds_reconstruct, info
             elif self.split == 'test':
                 return coords, xyz, feats, labels, inds_reconstruct, self.files[index]

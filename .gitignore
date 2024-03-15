@@ -103,3 +103,4 @@ spconv/
 
 *.pkl
 model_zoo
+.trash/

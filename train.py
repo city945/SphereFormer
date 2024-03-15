@@ -56,6 +56,7 @@ def get_parser():
     cfg.config = args.config
     cfg.extra_tag = datetime.datetime.now().strftime('%Y%m%d-%H%M%S') if args.extra_tag == 'default' else args.extra_tag
     cfg.use_wandb = args.use_wandb
+    cfg.debug = args.debug
     cfg.save_predicts = args.save_predicts
     cfg.save_path = f"{cfg.save_path}/{cfg.extra_tag}"
     cfg.result_dir = f"{cfg.save_path}/result"
@@ -69,7 +70,6 @@ def get_parser():
         cfg.batch_size_val = 4
         cfg.workers = 0
         cfg.manual_seed = 123
-        pu4c.nprandom.seed(123)
 
     return cfg
 
@@ -129,6 +129,8 @@ def main_worker(gpu, ngpus_per_node, argss):
         if args.multiprocessing_distributed:
             args.rank = args.rank * ngpus_per_node + gpu
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
+    if args.debug:
+        pu4c.nprandom.seed(123)
     
     # get model
     if args.arch == 'unet_spherical_transformer':
@@ -535,7 +537,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scaler, scheduler, g
         data_time.update(time.time() - end)
         torch.cuda.empty_cache()
         
-        coord, xyz, feat, target, offset = batch_data
+        coord, xyz, feat, target, offset, info = batch_data
         offset_ = offset.clone()
         offset_[1:] = offset_[1:] - offset_[:-1]
         batch = torch.cat([torch.tensor([ii]*o) for ii,o in enumerate(offset_)], 0).long()
