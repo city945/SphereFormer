@@ -10,6 +10,20 @@ import torch.nn.init as initer
 import torch.nn.functional as F
 import time
 
+def load_params_from_file(model, filepath):
+    model_state_disk = torch.load(filepath, map_location='cpu')
+    if 'state_dict' in model_state_disk:
+        model_state_disk = model_state_disk['state_dict']
+            
+    my_model_dict = model.state_dict()
+    part_load = {}
+    for k in model_state_disk.keys():
+        value = model_state_disk[k]
+        if k.startswith("module."):
+            k = k[len("module."):]
+        if k in my_model_dict and my_model_dict[k].shape == value.shape:
+            part_load[k] = value
+    model.load_state_dict(part_load, strict=True)
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
