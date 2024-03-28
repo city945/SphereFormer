@@ -1,0 +1,53 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        // train
+        {
+          "name": "train",
+          "type": "python",
+          "request": "launch",
+          "program": "train.py",
+          "justMyCode": true,
+          "cwd": "${workspaceFolder}",
+          "args": [
+            // "--config", "config/semantic_kitti/semantic_kitti_unet32_spherical_transformer.yaml",
+            // "--config", "config/nuscenes/nuscenes_unet32_spherical_transformer.yaml",
+            "--config", "config/waymo/waymo_unet32_spherical_transformer.yaml",
+            "--debug",
+            // "TRAIN.weight", "model_zoo/download/model_semantic_kitti.pth", "TRAIN.val", "True",
+          ]
+        },
+        // val
+        {
+          "name": "val",
+          "type": "python",
+          "request": "launch",
+          "program": "train.py",
+          "justMyCode": true,
+          "cwd": "${workspaceFolder}",
+          "args": [
+            "--config", "config/semantic_kitti/semantic_kitti_unet32_spherical_transformer.yaml",
+            // "--config", "config/nuscenes/nuscenes_unet32_spherical_transformer.yaml",
+            // "--config", "config/waymo/waymo_unet32_spherical_transformer.yaml",
+            "--debug",
+            "--save_predicts",
+            "TRAIN.weight", "model_zoo/download/model_semantic_kitti.pth", "TRAIN.val", "True",
+          ]
+        },
+    ]
+  }
+  /*
+  # os.mkdir() 等不能用软连接路径，pip install waymo-open-dataset-tf-2-11-0 有效
+  CUDA_VISIBLE_DEVICES="" python convert.py --load_dir /data/3D/waymo_open_dataset_v_1_4_0/archived_files/ --save_dir /root/work/datasets/waymo_open_dataset_v_1_4_0/sphereformer/waymo_semantickitti_format
+  
+  python train.py --config config/nuscenes/nuscenes_unet32_spherical_transformer.yaml
+  python train.py --config config/semantic_kitti/semantic_kitti_unet32_spherical_transformer.yaml
+  python train.py --config config/waymo/waymo_unet32_spherical_transformer.yaml
+  
+  python train.py --config config/semantic_kitti/semantic_kitti_unet32_spherical_transformer.yaml --save_predicts --extra_tag semantic_kitti_download TRAIN.weight model_zoo/download/model_semantic_kitti.pth TRAIN.val True
+  
+  */
+  
